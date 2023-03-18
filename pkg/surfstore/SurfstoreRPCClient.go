@@ -6,6 +6,7 @@ import (
 	grpc "google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -102,10 +103,14 @@ func (surfClient *RPCClient) GetFileInfoMap(serverFileInfoMap *map[string]*FileM
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		f, err := c.GetFileInfoMap(ctx, &emptypb.Empty{})
-		if err == ERR_NOT_LEADER || err == ERR_SERVER_CRASHED {
-			continue
-		} else if err != nil {
-			log.Println("GetFileInfoErr: ", err)
+		if err != nil {
+			if strings.Contains(err.Error(), ERR_SERVER_CRASHED.Error()) {
+				continue
+			}
+			if strings.Contains(err.Error(), ERR_NOT_LEADER.Error()) {
+				continue
+			}
+			conn.Close()
 			return err
 		}
 		*serverFileInfoMap = f.FileInfoMap
@@ -124,10 +129,13 @@ func (surfClient *RPCClient) UpdateFile(fileMetaData *FileMetaData, latestVersio
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		v, err := c.UpdateFile(ctx, fileMetaData)
-		if err == ERR_SERVER_CRASHED || err == ERR_NOT_LEADER {
-			continue
-		} else if err != nil {
-			fmt.Println("UpdateFile error")
+		if err != nil {
+			if strings.Contains(err.Error(), ERR_SERVER_CRASHED.Error()) {
+				continue
+			}
+			if strings.Contains(err.Error(), ERR_NOT_LEADER.Error()) {
+				continue
+			}
 			conn.Close()
 			return err
 		}
@@ -149,10 +157,13 @@ func (surfClient *RPCClient) GetBlockStoreMap(blockHashesIn []string, blockStore
 		blockHashes := &BlockHashes{}
 		(blockHashes.Hashes) = blockHashesIn
 		b, err := c.GetBlockStoreMap(ctx, blockHashes)
-		if err == ERR_SERVER_CRASHED || err == ERR_NOT_LEADER {
-			continue
-		} else if err != nil {
-			fmt.Println("GetBlockStoreMap")
+		if err != nil {
+			if strings.Contains(err.Error(), ERR_SERVER_CRASHED.Error()) {
+				continue
+			}
+			if strings.Contains(err.Error(), ERR_NOT_LEADER.Error()) {
+				continue
+			}
 			conn.Close()
 			return err
 		}
@@ -172,14 +183,17 @@ func (surfClient *RPCClient) GetBlockStoreAddrs(blockStoreAddrs *[]string) error
 		if err != nil {
 			return err
 		}
-		c := NewMetaStoreClient(conn)
+		c := NewRaftSurfstoreClient(conn)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		addrs, err := c.GetBlockStoreAddrs(ctx, &emptypb.Empty{})
-		if err == ERR_SERVER_CRASHED || err == ERR_NOT_LEADER {
-			continue
-		} else if err != nil {
-			fmt.Println("GetBlockAddrs err")
+		if err != nil {
+			if strings.Contains(err.Error(), ERR_SERVER_CRASHED.Error()) {
+				continue
+			}
+			if strings.Contains(err.Error(), ERR_NOT_LEADER.Error()) {
+				continue
+			}
 			conn.Close()
 			return err
 		}

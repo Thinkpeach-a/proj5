@@ -1,9 +1,10 @@
 package SurfTest
 
 import (
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"os"
 	"testing"
+
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	//	"time"
 )
 
@@ -15,7 +16,8 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 	defer EndTest(test)
 	test.Clients[0].SetLeader(test.Context, &emptypb.Empty{})
 	test.Clients[0].SendHeartbeat(test.Context, &emptypb.Empty{})
-
+	//debug
+	//printState(test)
 	worker1 := InitDirectoryWorker("test0", SRC_PATH)
 	worker2 := InitDirectoryWorker("test1", SRC_PATH)
 	defer worker1.CleanUp()
@@ -42,7 +44,7 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Sync failed")
 	}
-
+	//printState(test)
 	test.Clients[0].SendHeartbeat(test.Context, &emptypb.Empty{})
 
 	test.Clients[0].Crash(test.Context, &emptypb.Empty{})
@@ -54,7 +56,8 @@ func TestSyncTwoClientsSameFileLeaderFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Sync failed")
 	}
-
+	//printState(test)
+	//debug
 	test.Clients[1].SendHeartbeat(test.Context, &emptypb.Empty{})
 
 	//client1 syncs

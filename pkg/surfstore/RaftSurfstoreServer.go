@@ -3,7 +3,7 @@ package surfstore
 import (
 	context "context"
 	//"log"
-	"fmt"
+	//"fmt"
 	"math"
 	"sync"
 	"time"
@@ -90,6 +90,8 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 		FileMetaData: filemeta,
 	}
 	s.log = append(s.log, newEntry)
+	//debug
+	//fmt.Println("slog: ", len(s.log))
 	pending := make(chan bool)
 	s.pendingCommits = append(s.pendingCommits, &pending)
 	go s.sendToAllFollowersInParallel(ctx)
@@ -145,17 +147,25 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, id int, responses ch
 	dummyAppendEntriesInput := AppendEntryInput{
 		Term: s.term,
 		// TODO put the right values
-		PrevLogTerm:  s.log[nextIndex-1].Term,
+		//PrevLogTerm:  s.log[nextIndex-1].Term,
 		PrevLogIndex: nextIndex - 1,
 		Entries:      s.log[nextIndex:],
 		LeaderCommit: s.commitIndex,
 	}
+	prevLog := 0
+	if dummyAppendEntriesInput.PrevLogIndex >= 0 {
+		prevLog = int(s.log[nextIndex-1].Term)
+	}
+	dummyAppendEntriesInput.PrevLogTerm = int64(prevLog)
 	addr := s.ipAddrList[id]
 	// TODO check all errors
 	conn, _ := grpc.Dial(addr, grpc.WithInsecure())
 	client := NewRaftSurfstoreClient(conn)
 	// continue to try to appendEntries until the nextIndex matches
 	for {
+		//debug
+		//fmt.Println("prevIndex: ", dummyAppendEntriesInput.PrevLogIndex)
+		//fmt.Println("leadercommit: ", dummyAppendEntriesInput.LeaderCommit)
 		output, _ := client.AppendEntries(ctx, &dummyAppendEntriesInput)
 		if output.Success == true {
 			s.nextIndex[id] = int64(len(s.log))
@@ -221,23 +231,16 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 			return output, nil
 		}
 	}
-
-	if len(s.log)-1 > int(input.PrevLogIndex) {
-		inputIndex := 0
-		for i := int(input.PrevLogIndex) + 1; i < len(s.log); i++ {
-			curEntry := s.log[i]
-			inputEntry := input.Entries[inputIndex]
-			if curEntry.Term != inputEntry.Term {
-				curEntry = inputEntry
-			}
-			inputIndex++
-		}
-
-		for i := inputIndex; i < len(input.Entries); i++ {
-			inputEntry := input.Entries[i]
+	for i := 0; i < len(input.Entries); i++ {
+		curIndex := i + int(input.PrevLogIndex+1)
+		inputEntry := input.Entries[i]
+		if curIndex >= len(s.log) {
 			s.log = append(s.log, inputEntry)
+		} else {
+			s.log[curIndex] = inputEntry
 		}
 	}
+
 	if input.LeaderCommit > s.commitIndex {
 		s.commitIndex = int64(math.Min(float64(input.LeaderCommit), float64(len(s.log)-1)))
 
@@ -318,7 +321,7 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 			LeaderCommit: s.commitIndex,
 		}
 		//debug
-		fmt.Println("input***: ", input.Term, input.PrevLogIndex, input.LeaderCommit)
+		//fmt.Println("input***: ", input.Term, input.PrevLogIndex, input.LeaderCommit)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		output, _ := client.AppendEntries(ctx, input)
@@ -327,6 +330,8 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 			if aliveCount > len(s.ipAddrList)/2 {
 				majorityAlive = true
 			}
+		} else {
+			continue
 		}
 		if output.Success == true {
 			continue
@@ -336,7 +341,7 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 			break
 		}
 		//debug
-		fmt.Println("curLog*** id: ", s.id, "leader:", s.isLeader)
+		//fmt.Println("curLog*** id: ", s.id, "leader:", s.isLeader)
 		// if the appendentry fail
 		for {
 			s.nextIndex[idx] -= 1

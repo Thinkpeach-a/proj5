@@ -60,7 +60,7 @@ func TestRaftSetLeader(t *testing.T) {
 		printState(test)
 		server.SendHeartbeat(test.Context, &emptypb.Empty{})
 	}
-	printState(test)
+	//printState(test)
 	for idx, server := range test.Clients {
 		// all should have the leaders term
 		state, _ := server.GetInternalState(test.Context, &emptypb.Empty{})
