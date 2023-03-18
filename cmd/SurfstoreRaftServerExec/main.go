@@ -3,6 +3,8 @@ package main
 import (
 	"cse224/proj5/pkg/surfstore"
 	"flag"
+
+	//"fmt"
 	"io/ioutil"
 	"log"
 )
@@ -29,6 +31,8 @@ func startServer(id int64, config surfstore.RaftConfig) error {
 	if err != nil {
 		log.Fatal("Error creating servers")
 	}
+	//fmt.Println(raftServer.MatchedIndex)
 
 	return surfstore.ServeRaftServer(raftServer)
+	//return nil
 }

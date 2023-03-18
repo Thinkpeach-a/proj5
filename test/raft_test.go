@@ -2,6 +2,7 @@ package SurfTest
 
 import (
 	//"cse224/proj5/pkg/surfstore"
+	"fmt"
 	"testing"
 
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
@@ -16,7 +17,13 @@ func TestRaftSetLeader(t *testing.T) {
 	// TEST
 	leaderIdx := 0
 	test.Clients[leaderIdx].SetLeader(test.Context, &emptypb.Empty{})
-
+	//debug
+	state, _ := test.Clients[0].GetInternalState(test.Context, &emptypb.Empty{})
+	if state == nil {
+		t.Fatalf("Could not get state")
+	} else {
+		t.Log(state.IsLeader)
+	}
 	// heartbeat
 	for _, server := range test.Clients {
 		server.SendHeartbeat(test.Context, &emptypb.Empty{})
@@ -46,12 +53,14 @@ func TestRaftSetLeader(t *testing.T) {
 
 	leaderIdx = 2
 	test.Clients[leaderIdx].SetLeader(test.Context, &emptypb.Empty{})
-
+	//debug
+	//printState(test)
 	// heartbeat
 	for _, server := range test.Clients {
+		printState(test)
 		server.SendHeartbeat(test.Context, &emptypb.Empty{})
 	}
-
+	printState(test)
 	for idx, server := range test.Clients {
 		// all should have the leaders term
 		state, _ := server.GetInternalState(test.Context, &emptypb.Empty{})
@@ -72,5 +81,15 @@ func TestRaftSetLeader(t *testing.T) {
 				t.Fatalf("Server %d should not be the leader", idx)
 			}
 		}
+	}
+}
+
+func printState(test TestInfo) {
+	for idx, server := range test.Clients {
+		// all should have the leaders term
+		state, _ := server.GetInternalState(test.Context, &emptypb.Empty{})
+		fmt.Print("id: ", idx)
+		fmt.Println("leader: ", state.IsLeader, "Term: ", state.Term, "length: ", len(state.Log))
+		//fmt.Println("nextIndex:", state.nextIndex)
 	}
 }

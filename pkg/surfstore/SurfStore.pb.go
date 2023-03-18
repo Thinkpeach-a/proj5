@@ -729,6 +729,9 @@ type RaftInternalState struct {
 	Term     int64              `protobuf:"varint,2,opt,name=term,proto3" json:"term,omitempty"`
 	Log      []*UpdateOperation `protobuf:"bytes,3,rep,name=log,proto3" json:"log,omitempty"`
 	MetaMap  *FileInfoMap       `protobuf:"bytes,4,opt,name=metaMap,proto3" json:"metaMap,omitempty"`
+	//add new
+	nextIndex []int64
+	commitIndex int64
 }
 
 func (x *RaftInternalState) Reset() {

@@ -2,11 +2,14 @@ package surfstore
 
 import (
 	context "context"
-	grpc "google.golang.org/grpc"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	//"log"
+	"fmt"
 	"math"
 	"sync"
 	"time"
+
+	grpc "google.golang.org/grpc"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // TODO Add fields you need here
@@ -197,6 +200,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 	output := &AppendEntryOutput{
 		Success:      false,
 		MatchedIndex: -1,
+		Term:         s.term,
 	}
 
 	s.isCrashedMutex.RLock()
@@ -243,6 +247,8 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 			s.metaStore.UpdateFile(ctx, entry.FileMetaData)
 		}
 	}
+	// set the term to be equal
+	s.term = input.Term
 	output.Success = true
 	return output, nil
 }
@@ -311,7 +317,8 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 			Entries:      nil,
 			LeaderCommit: s.commitIndex,
 		}
-
+		//debug
+		fmt.Println("input***: ", input.Term, input.PrevLogIndex, input.LeaderCommit)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		output, _ := client.AppendEntries(ctx, input)
@@ -324,9 +331,14 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 		if output.Success == true {
 			continue
 		}
+		if output.Term > s.term {
+			s.isLeader = false
+			break
+		}
+		//debug
+		fmt.Println("curLog*** id: ", s.id, "leader:", s.isLeader)
 		// if the appendentry fail
 		for {
-
 			s.nextIndex[idx] -= 1
 			curId := s.nextIndex[idx] - 1
 			input.PrevLogIndex = curId
@@ -368,13 +380,15 @@ func (s *RaftSurfstore) GetInternalState(ctx context.Context, empty *emptypb.Emp
 	fileInfoMap, _ := s.metaStore.GetFileInfoMap(ctx, empty)
 	s.isLeaderMutex.RLock()
 	state := &RaftInternalState{
-		IsLeader: s.isLeader,
-		Term:     s.term,
-		Log:      s.log,
-		MetaMap:  fileInfoMap,
+		IsLeader:    s.isLeader,
+		Term:        s.term,
+		Log:         s.log,
+		MetaMap:     fileInfoMap,
+		nextIndex:   s.nextIndex,
+		commitIndex: s.commitIndex,
 	}
 	s.isLeaderMutex.RUnlock()
-
+	//fmt.Println(s.isLeader, s.term)
 	return state, nil
 }
 
