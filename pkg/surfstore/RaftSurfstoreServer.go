@@ -167,7 +167,9 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, id int, responses ch
 		//fmt.Println("prevIndex: ", dummyAppendEntriesInput.PrevLogIndex)
 		//fmt.Println("leadercommit: ", dummyAppendEntriesInput.LeaderCommit)
 		output, _ := client.AppendEntries(ctx, &dummyAppendEntriesInput)
-
+		if output == nil {
+			continue
+		}
 		if output.Success == true {
 			s.nextIndex[id] = int64(len(s.log))
 			break
