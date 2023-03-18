@@ -732,6 +732,7 @@ type RaftInternalState struct {
 	//add new
 	nextIndex []int64
 	commitIndex int64
+	isCrashed bool
 }
 
 func (x *RaftInternalState) Reset() {

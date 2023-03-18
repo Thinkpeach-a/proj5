@@ -89,7 +89,7 @@ func printState(test TestInfo) {
 		// all should have the leaders term
 		state, _ := server.GetInternalState(test.Context, &emptypb.Empty{})
 		fmt.Print("id: ", idx)
-		fmt.Println("leader: ", state.IsLeader, "Term: ", state.Term, "length: ", len(state.Log))
+		fmt.Println("leader: ", state.IsLeader, "Term: ", state.Term, "length: ", len(state.Log), "Crashed:")
 		//fmt.Println("nextIndex:", state.nextIndex)
 	}
 }

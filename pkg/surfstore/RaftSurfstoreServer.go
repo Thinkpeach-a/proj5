@@ -195,12 +195,13 @@ func (s *RaftSurfstore) checkValid(ctx context.Context, empty *emptypb.Empty) bo
 	if !s.isLeader {
 		return false
 	}
-	for {
-		success, _ := s.SendHeartbeat(ctx, empty)
-		if success.Flag {
-			return true
-		}
+	success, _ := s.SendHeartbeat(ctx, empty)
+	//debug
+	//fmt.Println("checkValid", success.Flag)
+	if success.Flag {
+		return true
 	}
+	return false
 }
 
 // 1. Reply false if term < currentTerm (§5.1)
@@ -399,6 +400,7 @@ func (s *RaftSurfstore) GetInternalState(ctx context.Context, empty *emptypb.Emp
 		MetaMap:     fileInfoMap,
 		nextIndex:   s.nextIndex,
 		commitIndex: s.commitIndex,
+		isCrashed:   s.isCrashed,
 	}
 	s.isLeaderMutex.RUnlock()
 	//fmt.Println(s.isLeader, s.term)

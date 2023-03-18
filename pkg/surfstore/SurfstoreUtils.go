@@ -76,23 +76,29 @@ func ClientSync(client RPCClient) {
 	//debug
 	//PrintMetaMap(remoteIndex)
 	if err != nil {
-		log.Println("cannot get the remoteIndex")
+		log.Fatalf("cannot get the remoteIndex")
 	}
 	//get the block address
 	var addresses []string
 	err = client.GetBlockStoreAddrs(&addresses)
 	if err != nil {
-		log.Println("cannot get the blockstoreaddr: ", err)
+		log.Fatalf("cannot get the blockstoreaddr: ", err)
 	}
 	//compare the localIndex with the remoteIndex
 	for fileName, localMetaData := range localIndex {
 		// remoteIndex don't have this file, just upload it
 		if _, ok := remoteIndex[fileName]; !ok {
-			uploadFile(client, fileName, localIndex)
+			err = uploadFile(client, fileName, localIndex)
+			if err != nil {
+				log.Fatalf("cannot uploadFile: ", err)
+			}
 		} else {
 			//check for the version and upload
 			if localMetaData.Version > remoteIndex[fileName].Version {
-				uploadFile(client, fileName, localIndex)
+				err = uploadFile(client, fileName, localIndex)
+				if err != nil {
+					log.Fatalf("cannot upload file ", err)
+				}
 			}
 		}
 	}
@@ -103,10 +109,16 @@ func ClientSync(client RPCClient) {
 		} else {
 			localMetaData := localIndex[fileName]
 			if localMetaData.Version < remoteMetaData.Version {
-				downloadFile(client, localIndex, remoteMetaData)
+				err = downloadFile(client, localIndex, remoteMetaData)
+				if err != nil {
+					log.Fatalf("cannot download ", err)
+				}
 			} else if localMetaData.Version == remoteMetaData.Version {
 				if !reflect.DeepEqual(localMetaData.BlockHashList, remoteMetaData.BlockHashList) {
-					downloadFile(client, localIndex, remoteMetaData)
+					err = downloadFile(client, localIndex, remoteMetaData)
+					if err != nil {
+						log.Fatalf("cannot download", err)
+					}
 				}
 			}
 		}
@@ -122,12 +134,20 @@ func uploadFile(client RPCClient, fileName string, localIndex map[string]*FileMe
 	//3. read the fileBlocks, update the fileBlocks in the BlockStore
 	latestVersion := &Version{}
 	fileMetaData := localIndex[fileName]
-	client.UpdateFile(fileMetaData, &latestVersion.Version)
+	err := client.UpdateFile(fileMetaData, &latestVersion.Version)
+	if err != nil {
+		log.Println("updateFile err:", err)
+		return err
+	}
 	// if curVersion is outdated syn the current data with the remote data
 	if latestVersion.Version == -1 {
 		log.Println("version is outdated")
 		remoteIndex := make(map[string]*FileMetaData)
-		client.GetFileInfoMap(&remoteIndex)
+		err = client.GetFileInfoMap(&remoteIndex)
+		if err != nil {
+			log.Println("getfileInfoMap err:", err)
+			return err
+		}
 		err := downloadFile(client, localIndex, remoteIndex[fileName])
 		if err != nil {
 			log.Println("downloadFile error:", err)
@@ -198,7 +218,11 @@ func downloadFile(client RPCClient, localIndex map[string]*FileMetaData, remoteM
 	hashes := remoteMetaData.BlockHashList
 	var blockStoreMap map[string][]string
 	blockStoreMap = make(map[string][]string)
-	client.GetBlockStoreMap(hashes, &blockStoreMap)
+	err = client.GetBlockStoreMap(hashes, &blockStoreMap)
+	if err != nil {
+		log.Println("getblockstoremap err:", err)
+		return err
+	}
 	// create a current file in local hash block map:
 	fileMap := make(map[string]Block)
 	for serverName, hashes := range blockStoreMap {
