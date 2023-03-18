@@ -58,7 +58,7 @@ func NewRaftServer(id int64, config RaftConfig) (*RaftSurfstore, error) {
 		server.nextIndex = append(server.nextIndex, 0)
 		server.MatchedIndex = append(server.MatchedIndex, 0)
 	}
-	fmt.Println(server.nextIndex[2])
+	//fmt.Println(server.nextIndex[2])
 
 	return &server, nil
 }

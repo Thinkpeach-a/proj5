@@ -57,7 +57,7 @@ func TestRaftSetLeader(t *testing.T) {
 	//printState(test)
 	// heartbeat
 	for _, server := range test.Clients {
-		printState(test)
+		//printState(test)
 		server.SendHeartbeat(test.Context, &emptypb.Empty{})
 	}
 	//printState(test)

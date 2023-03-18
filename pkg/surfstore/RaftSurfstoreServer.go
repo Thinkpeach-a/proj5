@@ -167,11 +167,14 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, id int, responses ch
 		//fmt.Println("prevIndex: ", dummyAppendEntriesInput.PrevLogIndex)
 		//fmt.Println("leadercommit: ", dummyAppendEntriesInput.LeaderCommit)
 		output, _ := client.AppendEntries(ctx, &dummyAppendEntriesInput)
+
 		if output.Success == true {
 			s.nextIndex[id] = int64(len(s.log))
 			break
 		} else {
-			s.nextIndex[id] -= 1
+			if s.nextIndex[id] != 0 {
+				s.nextIndex[id] -= 1
+			}
 			curId := s.nextIndex[id] - 1
 			dummyAppendEntriesInput.PrevLogIndex = curId
 			term := 0
@@ -252,6 +255,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 	}
 	// set the term to be equal
 	s.term = input.Term
+	s.isLeader = false
 	output.Success = true
 	return output, nil
 }
@@ -324,9 +328,11 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 		//fmt.Println("input***: ", input.Term, input.PrevLogIndex, input.LeaderCommit)
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		output, _ := client.AppendEntries(ctx, input)
+		output, err := client.AppendEntries(ctx, input)
 		if output != nil {
-			aliveCount++
+			if err == nil {
+				aliveCount++
+			}
 			if aliveCount > len(s.ipAddrList)/2 {
 				majorityAlive = true
 			}
